@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Mom's Garden Store 🌱</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <style>
+        /* ---------- GLOBAL ---------- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+        body {
+            background: #f5f9f2;
+            min-height: 100vh;
+        }
+
+        /* ---------- NAV ---------- */
+        .navbar {
+            background: #1e4a1a;
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .navbar h2 {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            color: #d4e8cc;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 30px;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            background: #3a7a35;
+            color: white;
+        }
+        .nav-links .admin-badge {
+            background: #b8860b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .cart-badge {
+            background: #c0392b;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        /* ---------- PAGES ---------- */
+        .page {
+            display: none;
+            padding: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .page.active {
+            display: block;
+        }
+
+        /* ---------- STORE GRID ---------- */
+        .store-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+        .product-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: 0.3s;
+            text-align: center;
+            padding-bottom: 15px;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .product-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #e8f0e4;
+        }
+        .product-card .no-img {
+            height: 200px;
+            background: #e8f0e4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8aaa82;
+            font-size: 4rem;
+        }
+        .product-card h3 {
+            margin: 10px 0 4px;
+            color: #1e3f1a;
+        }
+        .product-card .price {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #2d7a2a;
+        }
+        .product-card .desc {
+            color: #5a6f55;
+            font-size: 0.9rem;
+            padding: 0 10px;
+        }
+        .product-card .stock {
+            display: inline-block;
+            margin-top: 8px;
+            background: #d4e8cc;
+            padding: 2px 16px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            color: #1e4a1a;
+        }
+        .product-card .out-of-stock {
+            background: #f8d7da;
+            color: #a33;
+        }
+        .buy-btn {
+            background: #2d7a2a;
+            color: white;
+            border: none;
+            padding: 10px 35px;
+            border-radius: 30px;
+            font-weight: 600;
+            margin-top: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+        .buy-btn:hover {
+            background: #1f5e1c;
+            transform: scale(1.05);
+        }
+        .buy-btn:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ---------- ADMIN PANEL ---------- */
+        .admin-section {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+        }
+        .admin-section h3 {
+            color: #1e4a1a;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #dcebd4;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #2d4a2a;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid #dcebd4;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: #fafff9;
+        }
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #6b9e5e;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .btn {
+            background: #2d7a2a;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+        .btn:hover {
+            background: #1f5e1c;
+            transform: scale(1.02);
+        }
+        .btn-danger {
+            background: #b34a4a;
+        }
+        .btn-danger:hover {
+            background: #8f3838;
+        }
+        .btn-primary {
+            background: #2980b9;
+        }
+        .btn-primary:hover {
+            background: #1a5276;
+        }
+        .admin-products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .admin-product-item {
+            background: #f8fbf6;
+            border-radius: 16px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e2efe0;
+        }
+        .admin-product-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+            background: #e8f0e4;
+        }
+        .admin-product-item .no-img-small {
+            height: 120px;
+            background: #e8f0e4;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8aaa82;
+            font-size: 2.5rem;
+        }
+        .admin-product-item h4 {
+            margin: 6px 0 2px;
+            font-size: 0.95rem;
+        }
+        .admin-product-item .small-price {
+            color: #2d7a2a;
+            font-weight: 600;
+        }
+        .admin-product-item .del-btn {
+            background: none;
+            border: none;
+            color: #b34a4a;
+            cursor: pointer;
+            font-size: 1.1rem;
+            margin-top: 4px;
+        }
+
+        /* ---------- LOGIN ---------- */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+        .login-overlay.hidden {
+            display: none;
+        }
+        .login-box {
+            background: white;
+            padding: 40px 35px;
+            border-radius: 30px;
+            width: 90%;
+            max-width: 380px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-box h2 {
+            color: #1e4a1a;
+            margin-bottom: 20px;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 12px 16px;
+            margin: 8px 0;
+            border: 2px solid #dcebd4;
+            border-radius: 12px;
+            font-size: 1rem;
+        }
+        .login-box .btn {
+            width: 100%;
+            margin-top: 12px;
+        }
+        .login-box .error {
+            color: #b34a4a;
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        /* ---------- LOADING ---------- */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #5a6f55;
+            font-size: 1.2rem;
+        }
+        .spinner {
+            border: 4px solid #dcebd4;
+            border-top: 4px solid #2d7a2a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* ---------- TOAST ---------- */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #1e4a1a;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 350px;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.error {
+            background: #b34a4a;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* ---------- RESPONSIVE ---------- */
+        @media (max-width: 700px) {
+            .navbar { flex-direction: column; align-items: stretch; text-align: center; }
+            .nav-links { justify-content: center; }
+            .form-row { grid-template-columns: 1fr; }
+            .page { padding: 15px; }
+            .store-grid { grid-template-columns: 1fr 1fr; gap: 15px; }
+        }
+        @media (max-width: 450px) {
+            .store-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ========== NAVBAR ========== -->
+    <nav class="navbar">
+        <h2>🌱 Mom's Garden</h2>
+        <div class="nav-links">
+            <a class="active" onclick="showPage('store')">🛒 Store</a>
+            <a onclick="showPage('cart')">🛍️ Cart <span class="cart-badge" id="cartCount">0</span></a>
+            <a onclick="showPage('admin')">🔐 Admin</a>
+            <span class="admin-badge" id="loginStatus">🔒 Not logged in</span>
+        </div>
+    </nav>
+
+    <!-- ========== LOGIN OVERLAY ========== -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <h2>🔐 Admin Login</h2>
+            <p style="color:#5a6f55; margin-bottom:12px;">Enter the password to manage products</p>
+            <input type="password" id="loginPassword" placeholder="Enter admin password" />
+            <button class="btn" onclick="adminLogin()">Login</button>
+            <div class="error" id="loginError"></div>
+            <p style="margin-top:12px; font-size:0.8rem; color:#8aaa82;">Default password: <strong>garden123</strong></p>
+        </div>
+    </div>
+
+    <!-- ========== PAGE: STORE ========== -->
+    <div class="page active" id="page-store">
+        <h2 style="color:#1e4a1a;">🌿 Fresh from the garden</h2>
+        <p style="color:#5a6f55; margin-bottom:10px;">All vegetables are organic and freshly picked!</p>
+        <div id="storeGrid">
+            <div class="loading">
+                <div class="spinner"></div>
+                Loading fresh veggies...
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== PAGE: CART ========== -->
+    <div class="page" id="page-cart">
+        <h2 style="color:#1e4a1a;">🛍️ Your Cart</h2>
+        <div id="cartContent">
+            <p style="color:#5a6f55;">Your cart is empty. Start shopping! 🥬</p>
+        </div>
+    </div>
+
+    <!-- ========== PAGE: ADMIN ========== -->
+    <div class="page" id="page-admin">
+        <h2 style="color:#1e4a1a;">🔐 Admin Dashboard</h2>
+        <p style="color:#5a6f55; margin-bottom:20px;">Add or manage your vegetable products.</p>
+
+        <!-- Add Product -->
+        <div class="admin-section">
+            <h3>➕ Add New Product</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>🥬 Vegetable Name</label>
+                    <input type="text" id="prodName" placeholder="e.g. Kale" />
+                </div>
+                <div class="form-group">
+                    <label>💰 Price (KSh)</label>
+                    <input type="number" id="prodPrice" placeholder="e.g. 50" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label>📝 Description</label>
+                <input type="text" id="prodDesc" placeholder="e.g. Fresh organic kale" />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>📦 Stock Quantity</label>
+                    <input type="number" id="prodStock" placeholder="e.g. 20" value="10" />
+                </div>
+                <div class="form-group">
+                    <label>🖼️ Product Photo</label>
+                    <input type="file" id="prodImageFile" accept="image/*" />
+                    <p style="font-size:0.7rem; color:#8aaa82; margin-top:4px;">Upload a photo from your phone/computer</p>
+                </div>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn" onclick="addProduct()">➕ Add Product</button>
+                <button class="btn btn-primary" onclick="addSampleProducts()">📦 Add Sample Products</button>
+            </div>
+        </div>
+
+        <!-- Manage Products -->
+        <div class="admin-section">
+            <h3>📋 Your Products (<span id="productCount">0</span>)</h3>
+            <div id="adminProductList" class="admin-products-grid">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    Loading...
+                </div>
+            </div>
+        </div>
+
+        <!-- Danger -->
+        <div class="admin-section" style="border:2px solid #f8d7da;">
+            <h3 style="color:#b34a4a;">⚠️ Danger Zone</h3>
+            <button class="btn btn-danger" onclick="resetAllProducts()">🗑️ Delete All Products</button>
+        </div>
+    </div>
+
+    <!-- ========== TOAST ========== -->
+    <div id="toastContainer"></div>
+
+    <!-- ========== JAVASCRIPT ========== -->
+    <script>
+        // ============================================================
+        //  🔥 FIREBASE CONFIG - REPLACE WITH YOUR OWN!
+        // ============================================================
+        const firebaseConfig = {
+  apiKey: "AIzaSyB8d5xbkx1k6q0vtDjC8CivrKp4rVUVtG0",
+  authDomain: "mama-ali-3e84c.firebaseapp.com",
+  projectId: "mama-ali-3e84c",
+  storageBucket: "mama-ali-3e84c.firebasestorage.app",
+  messagingSenderId: "530814320835",
+  appId: "1:530814320835:web:ae69b35476f36e10efe276",
+  measurementId: "G-FGSG9DQMVM"
+};
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // ============================================================
+        //  STATE
+        // ============================================================
+        let products = [];
+        let cart = [];
+        let isAdmin = false;
+
+        // ============================================================
+        //  LOAD PRODUCTS FROM FIRESTORE (Real-time)
+        // ============================================================
+        function loadProducts() {
+            db.collection('products')
+                .orderBy('name')
+                .onSnapshot((snapshot) => {
+                    products = [];
+                    snapshot.forEach(doc => {
+                        products.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderStore();
+                    renderAdminProducts();
+                    document.getElementById('productCount').textContent = products.length;
+                }, (error) => {
+                    console.error('Error loading products:', error);
+                    showToast('❌ Error loading products: ' + error.message, 'error');
+                });
+        }
+
+        // ============================================================
+        //  RENDER STORE
+        // ============================================================
+        function renderStore() {
+            const grid = document.getElementById('storeGrid');
+            if (products.length === 0) {
+                grid.innerHTML = `<p style="text-align:center; color:#8aaa82; padding:40px 0; font-size:1.2rem;">🌸 No products yet — check back soon!</p>`;
+                return;
+            }
+            grid.innerHTML = products.map(p => `
+                <div class="product-card">
+                    ${p.imageUrl ? `<img src="${p.imageUrl}" alt="${p.name}" />` : `<div class="no-img">🥬</div>`}
+                    <h3>${p.name}</h3>
+                    <div class="price">KSh ${p.price}</div>
+                    <div class="desc">${p.desc || ''}</div>
+                    <div class="stock ${p.stock <= 0 ? 'out-of-stock' : ''}">${p.stock > 0 ? `📦 ${p.stock} in stock` : '❌ Out of stock'}</div>
+                    <button class="buy-btn" ${p.stock <= 0 ? 'disabled' : ''} onclick="addToCart('${p.id}')">
+                        ${p.stock > 0 ? '🛒 Add to Cart' : 'Sold Out'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================
+        //  CART FUNCTIONS
+        // ============================================================
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product || product.stock <= 0) return;
+
+            // Check if already in cart
+            const existing = cart.find(item => item.id === productId);
+            if (existing) {
+                if (existing.qty < product.stock) {
+                    existing.qty += 1;
+                } else {
+                    showToast('⚠️ Not enough stock!', 'error');
+                    return;
+                }
+            } else {
+                cart.push({ id: productId, name: product.name, price: product.price, qty: 1, imageUrl: product.imageUrl });
+            }
+            updateCartUI();
+            showToast(`✅ Added ${product.name} to cart!`);
+        }
+
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            document.getElementById('cartCount').textContent = cart.reduce((sum, item) => sum + item.qty, 0);
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cartContent');
+            if (cart.length === 0) {
+                container.innerHTML = `<p style="color:#5a6f55; padding:20px 0;">🛒 Your cart is empty. Start shopping!</p>`;
+                return;
+            }
+
+            let total = 0;
+            let html = `
+                <div style="background:white; border-radius:20px; padding:20px; box-shadow:0 4px 15px rgba(0,0,0,0.06);">
+                <div style="display:grid; gap:15px;">
+            `;
+            cart.forEach(item => {
+                const subtotal = item.price * item.qty;
+                total += subtotal;
+                html += `
+                    <div style="display:flex; gap:15px; align-items:center; padding:10px; border-bottom:1px solid #dcebd4; flex-wrap:wrap;">
+                        <div style="width:60px; height:60px; border-radius:10px; overflow:hidden; background:#e8f0e4; flex-shrink:0;">
+                            ${item.imageUrl ? `<img src="${item.imageUrl}" style="width:100%;height:100%;object-fit:cover;" />` : '🥬'}
+                        </div>
+                        <div style="flex:1;">
+                            <strong>${item.name}</strong>
+                            <div>KSh ${item.price} × ${item.qty}</div>
+                        </div>
+                        <div style="font-weight:700; color:#2d7a2a;">KSh ${subtotal}</div>
+                        <button class="btn btn-danger" style="padding:4px 12px; font-size:0.8rem;" onclick="removeFromCart('${item.id}')">✕</button>
+                    </div>
+                `;
+            });
+            html += `
+                </div>
+                <div style="margin-top:20px; padding-top:20px; border-top:2px solid #1e4a1a; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+                    <h3 style="color:#1e4a1a;">Total: KSh ${total}</h3>
+                    <button class="btn" onclick="checkout()">💳 Checkout (Pochi La Biashara)</button>
+                </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        // ============================================================
+        //  CHECKOUT - POCHI LA BIASHARA (STK Push Simulation)
+        // ============================================================
+        function checkout() {
+            if (cart.length === 0) {
+                showToast('🛒 Your cart is empty!', 'error');
+                return;
+            }
+
+            const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+            
+            // Show phone number prompt
+            const phone = prompt('📱 Enter M-Pesa phone number (e.g., 0712345678):\n\nPochi La Biashara payment will be initiated.');
+            if (!phone || phone.length < 10) {
+                showToast('❌ Valid phone number required!', 'error');
+                return;
+            }
+
+            // In a real implementation, you would call your backend API here
+            // For now, we'll simulate the STK push
+            showToast(`📲 Sending STK push to ${phone}...`);
+
+            // Simulate payment process
+            setTimeout(() => {
+                // Reduce stock for each item
+                cart.forEach(async (item) => {
+                    const product = products.find(p => p.id === item.id);
+                    if (product) {
+                        const newStock = product.stock - item.qty;
+                        await db.collection('products').doc(item.id).update({
+                            stock: newStock
+                        });
+                    }
+                });
+
+                // Record sale in Firestore
+                const saleData = {
+                    items: cart,
+                    total: total,
+                    phone: phone,
+                    date: new Date().toISOString(),
+                    status: 'completed'
+                };
+                db.collection('sales').add(saleData);
+
+                showToast(`✅ Payment successful! Total: KSh ${total}\nThank you for supporting Mom's garden! 🌱`);
+                cart = [];
+                updateCartUI();
+                showPage('store');
+            }, 2000);
+        }
+
+        // ============================================================
+        //  ADMIN - ADD PRODUCT (with image upload)
+        // ============================================================
+        async function addProduct() {
+            if (!isAdmin) {
+                showToast('⚠️ Please login as admin first!', 'error');
+                return;
+            }
+
+            const name = document.getElementById('prodName').value.trim();
+            const price = parseInt(document.getElementById('prodPrice').value);
+            const desc = document.getElementById('prodDesc').value.trim();
+            const stock = parseInt(document.getElementById('prodStock').value) || 0;
+            const fileInput = document.getElementById('prodImageFile');
+
+            if (!name || isNaN(price) || price <= 0) {
+                showToast('❌ Please enter a valid name and price.', 'error');
+                return;
+            }
+
+            let imageUrl = '';
+
+            // Upload image if selected
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const storageRef = storage.ref(`products/${Date.now()}_${file.name}`);
+                showToast('📤 Uploading image...');
+                try {
+                    const snapshot = await storageRef.put(file);
+                    imageUrl = await snapshot.ref.getDownloadURL();
+                } catch (error) {
+                    showToast('❌ Image upload failed: ' + error.message, 'error');
+                    return;
+                }
+            }
+
+            // Add to Firestore
+            try {
+                await db.collection('products').add({
+                    name: name,
+                    price: price,
+                    desc: desc,
+                    stock: stock,
+                    imageUrl: imageUrl,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                showToast(`✅ "${name}" added successfully!`);
+                // Clear form
+                document.getElementById('prodName').value = '';
+                document.getElementById('prodPrice').value = '';
+                document.getElementById('prodDesc').value = '';
+                document.getElementById('prodStock').value = '10';
+                document.getElementById('prodImageFile').value = '';
+            } catch (error) {
+                showToast('❌ Error adding product: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        //  ADMIN - DELETE PRODUCT
+        // ============================================================
+        async function deleteProduct(id) {
+            if (!confirm('Remove this product?')) return;
+            try {
+                await db.collection('products').doc(id).delete();
+                showToast('🗑️ Product deleted.');
+            } catch (error) {
+                showToast('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        //  ADMIN - RESET ALL
+        // ============================================================
+        async function resetAllProducts() {
+            if (!confirm('⚠️ Delete ALL products permanently? This cannot be undone!')) return;
+            try {
+                const snapshot = await db.collection('products').get();
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                showToast('🗑️ All products deleted.');
+            } catch (error) {
+                showToast('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        //  ADMIN - ADD SAMPLE PRODUCTS
+        // ============================================================
+        async function addSampleProducts() {
+            if (!isAdmin) {
+                showToast('⚠️ Please login as admin first!', 'error');
+                return;
+            }
+            const samples = [
+                { name: 'Kale', price: 50, desc: 'Fresh organic kale', stock: 20 },
+                { name: 'Tomatoes', price: 80, desc: 'Juicy ripe tomatoes', stock: 15 },
+                { name: 'Spinach', price: 45, desc: 'Tender spinach leaves', stock: 25 },
+                { name: 'Onions', price: 60, desc: 'Red onions from the garden', stock: 30 },
+                { name: 'Cabbage', price: 70, desc: 'Fresh crunchy cabbage', stock: 12 },
+                { name: 'Carrots', price: 55, desc: 'Sweet organic carrots', stock: 18 }
+            ];
+            try {
+                for (const s of samples) {
+                    await db.collection('products').add({
+                        ...s,
+                        imageUrl: '',
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+                showToast(`✅ Added ${samples.length} sample products!`);
+            } catch (error) {
+                showToast('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        // ============================================================
+        //  ADMIN - RENDER PRODUCTS IN ADMIN PANEL
+        // ============================================================
+        function renderAdminProducts() {
+            const container = document.getElementById('adminProductList');
+            if (products.length === 0) {
+                container.innerHTML = `<p style="grid-column:1/-1; color:#8aaa82; text-align:center; padding:20px;">No products yet. Add some! 🌱</p>`;
+                return;
+            }
+            container.innerHTML = products.map(p => `
+                <div class="admin-product-item">
+                    ${p.imageUrl ? `<img src="${p.imageUrl}" alt="${p.name}" />` : `<div class="no-img-small">🥬</div>`}
+                    <h4>${p.name}</h4>
+                    <div class="small-price">KSh ${p.price}</div>
+                    <div style="font-size:0.8rem; color:#5a6f55;">Stock: ${p.stock}</div>
+                    <button class="del-btn" onclick="deleteProduct('${p.id}')">✕ Remove</button>
+                </div>
+            `).join('');
+        }
+
+        // ============================================================
+        //  ADMIN LOGIN
+        // ============================================================
+        function adminLogin() {
+            const password = document.getElementById('loginPassword').value;
+            if (password === 'garden123') {
+                isAdmin = true;
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('loginStatus').textContent = '✅ Admin logged in';
+                document.getElementById('loginStatus').style.color = '#8fdb7a';
+                showPage('admin');
+            } else {
+                document.getElementById('loginError').textContent = '❌ Wrong password. Try again.';
+            }
+        }
+
+        // ============================================================
+        //  PAGE NAVIGATION
+        // ============================================================
+        function showPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + page).classList.add('active');
+            document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+            const links = document.querySelectorAll('.nav-links a');
+            if (page === 'store') links[0].classList.add('active');
+            else if (page === 'cart') links[1].classList.add('active');
+            else if (page === 'admin') links[2].classList.add('active');
+
+            if (page === 'admin' && !isAdmin) {
+                document.getElementById('loginOverlay').classList.remove('hidden');
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginError').textContent = '';
+            }
+            if (page === 'cart') renderCart();
+        }
+
+        // ============================================================
+        //  TOAST NOTIFICATIONS
+        // ============================================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = '0.5s';
+                setTimeout(() => toast.remove(), 500);
+            }, 4000);
+        }
+
+        // ============================================================
+        //  ENTER KEY ON LOGIN
+        // ============================================================
+        document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') adminLogin();
+        });
+
+        // ============================================================
+        //  INIT
+        // ============================================================
+        loadProducts();
+        console.log('🌱 Mom\'s Garden Store loaded with Firebase!');
+        console.log('🔑 Default admin password: garden123');
+        console.log('📞 Contact for Pochi La Biashara: 0795343420');
+    </script>
+</body>
+</html>
